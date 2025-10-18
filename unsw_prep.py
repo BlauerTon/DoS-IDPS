@@ -2,9 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 
-# ----------------------------
 # 1. CONFIGURATION
-# ----------------------------
 data_dir = r"C:\Users\sidne\OneDrive\Desktop\Studies\sem 4.2\IS Project\Project\Data\UNSW-NB15"
 output_dir = r"C:\Users\sidne\OneDrive\Desktop\Studies\sem 4.2\IS Project\Project\Preprocessed"
 
@@ -29,9 +27,7 @@ files = [
 
 dos_files = {"UNSW-NB15_2.csv", "UNSW-NB15_4.csv"}
 
-# ----------------------------
 # 2. LOAD AND FILTER DATA
-# ----------------------------
 dataframes = []
 
 for file in files:
@@ -57,14 +53,11 @@ for file in files:
 full_df = pd.concat(dataframes, ignore_index=True)
 print(f"\nTotal rows after filtering: {len(full_df)}")
 
-# ----------------------------
 # 3. CREATE BINARY LABEL
-# ----------------------------
 full_df['is_dos'] = full_df['Label'].astype(int)
 
-# ----------------------------
+# 
 # 4. SELECT FEATURES FOR DoS DETECTION
-# ----------------------------
 features_to_drop = [
     'srcip', 'sport', 'dstip', 'dport',
     'service', 'state',
@@ -73,7 +66,7 @@ features_to_drop = [
     'is_ftp_login', 'ct_ftp_cmd',
     'ct_flw_http_mthd',
     'attack_cat',
-    'proto'  # ✅ ADDED: drop proto since it's all 0.0
+    'proto'  # all 0 in dataset
 ]
 
 X = full_df.drop(columns=features_to_drop + ['Label', 'is_dos'], errors='ignore')
@@ -84,16 +77,12 @@ y = full_df['is_dos']
 print(f"\nFinal feature set: {X.shape[1]} features")
 print("Features:", list(X.columns))
 
-# ----------------------------
 # 5. SAVE PROCESSED DATA
-# ----------------------------
 X.to_csv(os.path.join(output_dir, "UNSW_X_dos.csv"), index=False)
 y.to_csv(os.path.join(output_dir, "UNSW_y_dos.csv"), index=False, header=['is_dos'])
-print(f"\n✅ Processed data saved to: {output_dir}")
+print(f"\nProcessed data saved to: {output_dir}")
 
-# ----------------------------
 # 6. QUICK STATS
-# ----------------------------
 print("\n=== CLASS DISTRIBUTION ===")
 print(f"Benign (0): {sum(y == 0)}")
 print(f"DoS    (1): {sum(y == 1)}")
