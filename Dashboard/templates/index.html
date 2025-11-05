@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PiGuard: Real-Time UDP IDS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>PiGuard: Real-Time UDP Flood Detector</h1>
+    <div class="status">wlan0 | 192.168.1.107 | <span id="status">LIVE</span></div>
+
+    <div class="grid">
+      <!-- Attack Map -->
+      <div class="card">
+        <h3>Attack Map</h3>
+        <div id="map">
+          <div class="node pi">Pi<br>192.168.1.107</div>
+        </div>
+      </div>
+
+      <!-- Live Traffic -->
+      <div class="card">
+        <h3>Traffic (pps)</h3>
+        <canvas id="trafficChart"></canvas>
+      </div>
+
+      <!-- Intensity Gauge -->
+      <div class="card">
+        <h3>Attack Intensity</h3>
+        <canvas id="gaugeChart"></canvas>
+      </div>
+
+      <!-- Network Load -->
+      <div class="card">
+        <h3>Network Load</h3>
+        <div class="progress">
+          <div id="loadBar" class="progress-bar">0%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+    const trafficChart = new Chart(trafficCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'PPS', data: [], borderColor: '#00bfff', fill: false }] },
+      options: { animation: false, scales: { y: { beginAtZero: true } } }
+    });
+
+    const gaugeCtx = document.getElementById('gaugeChart').getContext('2d');
+    const gaugeChart = new Chart(gaugeCtx, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [0, 100], backgroundColor: ['#32cd32', '#333'] }] },
+      options: { cutout: '80%', plugins: { legend: { display: false } } }
+    });
+
+    const sourceNodes = new Map();
+
+    const es = new EventSource('/stream');
+    es.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+      if (data.type === 'heartbeat') return;
+
+      const src = data.src;
+      const prob = (data.prob * 100).toFixed(1);
+      const rate = data.rate.toFixed(1);
+
+      // Update map
+      if (!sourceNodes.has(src)) {
+        const node = document.createElement('div');
+        node.className = 'node attacker';
+        node.textContent = `${src}\n→ flood`;
+        document.getElementById('map').appendChild(node);
+        sourceNodes.set(src, node);
+      }
+
+      // Update charts
+      const now = new Date().toLocaleTimeString();
+      trafficChart.data.labels.push(now);
+      trafficChart.data.datasets[0].data.push(rate);
+      if (trafficChart.data.labels.length > 10) {
+        trafficChart.data.labels.shift();
+        trafficChart.data.datasets[0].data.shift();
+      }
+      trafficChart.update();
+
+      gaugeChart.data.datasets[0].data = [prob, 100 - prob];
+      gaugeChart.update();
+
+      document.getElementById('loadBar').style.width = `${Math.min(prob, 100)}%`;
+      document.getElementById('loadBar').textContent = `${prob}%`;
+
+      // Popup Alert
+      Swal.fire({
+        title: data.type === 'alert' ? 'CONFIRMED ATTACK' : 'WARNING',
+        html: `<b>${src} → 192.168.1.107</b><br>
+               Probability: <b>${prob}%</b><br>
+               Rate: <b>${rate} pps</b>`,
+        icon: data.type === 'alert' ? 'error' : 'warning',
+        confirmButtonText: 'Dismiss',
+        allowOutsideClick: false
+      });
+    };
+  </script>
+</body>
+</html>
