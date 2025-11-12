@@ -1,110 +1,582 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>PiGuard: Real-Time UDP IDS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Security Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --warning: #e67e22;
+            --danger: #c0392b;
+            --info: #3498db;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --gray: #95a5a6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            text-align: center;
+            border-left: 4px solid var(--info);
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 2.2em;
+            margin-bottom: 8px;
+            font-weight: 400;
+        }
+
+        .header p {
+            color: var(--secondary);
+            font-size: 1.1em;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .status-normal {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-attack {
+            background: var(--danger);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: transform 0.2s ease;
+            border-top: 3px solid var(--info);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .stat-card.alert {
+            border-top-color: var(--danger);
+        }
+
+        .stat-card.load {
+            border-top-color: var(--warning);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 300;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: var(--secondary);
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .progress-container {
+            background: var(--light);
+            border-radius: 8px;
+            height: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+            transition: width 0.5s ease;
+            border-radius: 8px;
+        }
+
+        .load-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.8em;
+            color: var(--secondary);
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: 220px;
+        }
+
+        .chart-container h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+
+        .alerts-container {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            grid-column: 1 / -1;
+        }
+
+        .alerts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .alerts-header h3 {
+            color: var(--primary);
+            font-weight: 500;
+            font-size: 1.2em;
+        }
+
+        .alert-item {
+            padding: 18px;
+            margin: 10px 0;
+            border-left: 4px solid var(--info);
+            background: var(--light);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .alert-item:hover {
+            transform: translateX(2px);
+        }
+
+        .alert-high {
+            border-left-color: var(--warning);
+            background: #fdf2e9;
+        }
+
+        .alert-critical {
+            border-left-color: var(--danger);
+            background: #faeaea;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 1em;
+        }
+
+        .alert-meta {
+            font-size: 0.85em;
+            color: var(--secondary);
+            margin-bottom: 3px;
+        }
+
+        .alert-time {
+            font-size: 0.8em;
+            color: var(--gray);
+        }
+
+        .button {
+            padding: 10px 20px;
+            background: var(--info);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+
+        .button:hover {
+            background: #2980b9;
+        }
+
+        .button-clear {
+            background: var(--danger);
+        }
+
+        .button-clear:hover {
+            background: #a93226;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--secondary);
+            margin-top: 30px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        /* Popup Alert Styles */
+        .alert-popup {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--danger);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 400px;
+            animation: slideIn 0.5s ease;
+            border-left: 5px solid #fff;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-popup h4 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .alert-popup p {
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .alert-popup button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .alert-popup button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .rate-info {
+            font-size: 0.8em;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>PiGuard: Real-Time UDP Flood Detector</h1>
-    <div class="status">wlan0 | 192.168.1.107 | <span id="status">LIVE</span></div>
-
-    <div class="grid">
-      <!-- Attack Map -->
-      <div class="card">
-        <h3>Attack Map</h3>
-        <div id="map">
-          <div class="node pi">Pi<br>192.168.1.107</div>
+    <div class="container">
+        <div class="header">
+            <h1>Network Security Dashboard</h1>
+            <p>Real-time Intrusion Detection and Prevention System</p>
+            <div id="statusIndicator" class="status-badge status-normal">
+                Normal Operation
+            </div>
+            <p style="margin-top: 15px; font-size: 0.9em;">Dashboard: {{ dashboard_ip }}:{{ dashboard_port }}</p>
         </div>
-      </div>
 
-      <!-- Live Traffic -->
-      <div class="card">
-        <h3>Traffic (pps)</h3>
-        <canvas id="trafficChart"></canvas>
-      </div>
+        <div class="dashboard-grid">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalPackets">0</div>
+                    <div class="stat-label">Total Packets</div>
+                </div>
 
-      <!-- Intensity Gauge -->
-      <div class="card">
-        <h3>Attack Intensity</h3>
-        <canvas id="gaugeChart"></canvas>
-      </div>
+                <div class="stat-card alert">
+                    <div class="stat-number" id="totalAlerts">0</div>
+                    <div class="stat-label">Security Alerts</div>
+                </div>
 
-      <!-- Network Load -->
-      <div class="card">
-        <h3>Network Load</h3>
-        <div class="progress">
-          <div id="loadBar" class="progress-bar">0%</div>
+                <div class="stat-card">
+                    <div class="stat-number" id="currentRate">0</div>
+                    <div class="stat-label">Current Rate (pps)</div>
+                    <div class="rate-info">Max observed: <span id="maxRate">0</span> pps</div>
+                </div>
+
+                <div class="stat-card load">
+                    <div class="stat-number" id="networkLoad">0%</div>
+                    <div class="stat-label">Network Load</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="networkLoadBar" style="width: 0%"></div>
+                    </div>
+                    <div class="load-indicator">
+                        <span>Low</span>
+                        <span>Medium</span>
+                        <span>High</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Packet Distribution</h3>
+                <canvas id="packetChart" width="200" height="150"></canvas>
+            </div>
         </div>
-      </div>
+
+        <div class="alerts-container">
+            <div class="alerts-header">
+                <h3>Security Alerts</h3>
+                <button class="button button-clear" onclick="clearAlerts()">Clear All Alerts</button>
+            </div>
+            <div id="alertsList">
+                <div class="alert-item">
+                    <div class="alert-title">No recent security alerts</div>
+                    <div class="alert-meta">Network traffic is operating within normal parameters</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Auto-refreshing every 3 seconds | Network Intrusion Detection System</p>
+        </div>
     </div>
-  </div>
 
-  <script>
-    const trafficCtx = document.getElementById('trafficChart').getContext('2d');
-    const trafficChart = new Chart(trafficCtx, {
-      type: 'line',
-      data: { labels: [], datasets: [{ label: 'PPS', data: [], borderColor: '#00bfff', fill: false }] },
-      options: { animation: false, scales: { y: { beginAtZero: true } } }
-    });
+    <!-- Popup Alert Container -->
+    <div id="popupContainer"></div>
 
-    const gaugeCtx = document.getElementById('gaugeChart').getContext('2d');
-    const gaugeChart = new Chart(gaugeCtx, {
-      type: 'doughnut',
-      data: { datasets: [{ data: [0, 100], backgroundColor: ['#32cd32', '#333'] }] },
-      options: { cutout: '80%', plugins: { legend: { display: false } } }
-    });
+    <script>
+        let packetChart = null;
+        let lastAlertCount = 0;
+        let popupTimeout = null;
 
-    const sourceNodes = new Map();
+        function updateDashboard(data) {
+            // Update statistics
+            document.getElementById('totalPackets').textContent = data.total_packets.toLocaleString();
+            document.getElementById('totalAlerts').textContent = data.total_alerts.toLocaleString();
+            document.getElementById('currentRate').textContent = data.current_rate;
+            document.getElementById('maxRate').textContent = data.max_observed_rate || 0;
+            document.getElementById('networkLoad').textContent = data.network_load + '%';
 
-    const es = new EventSource('/stream');
-    es.onmessage = function(e) {
-      const data = JSON.parse(e.data);
-      if (data.type === 'heartbeat') return;
+            // Update network load progress bar
+            const loadBar = document.getElementById('networkLoadBar');
+            loadBar.style.width = data.network_load + '%';
 
-      const src = data.src;
-      const prob = (data.prob * 100).toFixed(1);
-      const rate = data.rate.toFixed(1);
+            // Update status indicator
+            const statusIndicator = document.getElementById('statusIndicator');
 
-      // Update map
-      if (!sourceNodes.has(src)) {
-        const node = document.createElement('div');
-        node.className = 'node attacker';
-        node.textContent = `${src}\n→ flood`;
-        document.getElementById('map').appendChild(node);
-        sourceNodes.set(src, node);
-      }
+            if (data.system_status === 'UNDER_ATTACK') {
+                statusIndicator.className = 'status-badge status-attack';
+                statusIndicator.textContent = 'Under Attack';
 
-      // Update charts
-      const now = new Date().toLocaleTimeString();
-      trafficChart.data.labels.push(now);
-      trafficChart.data.datasets[0].data.push(rate);
-      if (trafficChart.data.labels.length > 10) {
-        trafficChart.data.labels.shift();
-        trafficChart.data.datasets[0].data.shift();
-      }
-      trafficChart.update();
+                // Show popup alert for new attacks
+                if (data.total_alerts > lastAlertCount) {
+                    showAttackPopup(data.recent_alerts[0]);
+                }
+            } else {
+                statusIndicator.className = 'status-badge status-normal';
+                statusIndicator.textContent = 'Normal Operation';
+            }
 
-      gaugeChart.data.datasets[0].data = [prob, 100 - prob];
-      gaugeChart.update();
+            lastAlertCount = data.total_alerts;
 
-      document.getElementById('loadBar').style.width = `${Math.min(prob, 100)}%`;
-      document.getElementById('loadBar').textContent = `${prob}%`;
+            // Update packet chart
+            updatePacketChart(data.packet_stats);
 
-      // Popup Alert
-      Swal.fire({
-        title: data.type === 'alert' ? 'CONFIRMED ATTACK' : 'WARNING',
-        html: `<b>${src} → 192.168.1.107</b><br>
-               Probability: <b>${prob}%</b><br>
-               Rate: <b>${rate} pps</b>`,
-        icon: data.type === 'alert' ? 'error' : 'warning',
-        confirmButtonText: 'Dismiss',
-        allowOutsideClick: false
-      });
-    };
-  </script>
+            // Update alerts
+            updateAlerts(data.recent_alerts);
+        }
+
+        function showAttackPopup(alert) {
+            // Clear any existing popup
+            if (popupTimeout) {
+                clearTimeout(popupTimeout);
+            }
+
+            const popupContainer = document.getElementById('popupContainer');
+
+            // Format confidence/probability
+            let confidence = 'N/A';
+            if (alert.probability && alert.probability !== 'N/A') {
+                confidence = (alert.probability * 100).toFixed(1) + '%';
+            }
+
+            const popup = document.createElement('div');
+            popup.className = 'alert-popup';
+            popup.innerHTML = `
+                <h4>SECURITY ALERT</h4>
+                <p><strong>${alert.type}</strong> detected from ${alert.source_ip}</p>
+                <p>Target: Port ${alert.destination_port}</p>
+                <p>Rate: ${alert.packets_per_second} packets/second</p>
+                <p>Severity: ${alert.severity} | Confidence: ${confidence}</p>
+                <button onclick="this.parentElement.remove()">Dismiss</button>
+            `;
+
+            popupContainer.appendChild(popup);
+
+            // Auto-remove after 10 seconds
+            popupTimeout = setTimeout(() => {
+                if (popup.parentElement) {
+                    popup.remove();
+                }
+            }, 10000);
+        }
+
+        function updatePacketChart(stats) {
+            const ctx = document.getElementById('packetChart').getContext('2d');
+
+            if (packetChart) {
+                packetChart.destroy();
+            }
+
+            packetChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['UDP', 'TCP', 'ICMP', 'Other'],
+                    datasets: [{
+                        data: [stats.udp, stats.tcp, stats.icmp, stats.other],
+                        backgroundColor: ['#3498db', '#2ecc71', '#e67e22', '#95a5a6'],
+                        borderWidth: 1,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function updateAlerts(alerts) {
+            const alertsList = document.getElementById('alertsList');
+
+            if (alerts.length === 0) {
+                alertsList.innerHTML = `
+                    <div class="alert-item">
+                        <div class="alert-title">No recent security alerts</div>
+                        <div class="alert-meta">Network traffic is operating within normal parameters</div>
+                    </div>
+                `;
+                return;
+            }
+
+            alertsList.innerHTML = alerts.reverse().map(alert => {
+                const severityClass = alert.severity === 'CRITICAL' ? 'alert-critical' :
+                                   alert.severity === 'HIGH' ? 'alert-high' : '';
+
+                // Handle probability/confidence display
+                let confidence = 'N/A';
+                if (alert.probability && alert.probability !== 'N/A') {
+                    confidence = (alert.probability * 100).toFixed(1) + '%';
+                }
+
+                return `
+                    <div class="alert-item ${severityClass}">
+                        <div class="alert-title">${alert.type} - ${alert.source_ip} to port ${alert.destination_port}</div>
+                        <div class="alert-meta">
+                            Rate: ${alert.packets_per_second} p/s |
+                            Confidence: ${confidence} |
+                            Severity: ${alert.severity} |
+                            Method: ${alert.detection_method}
+                        </div>
+                        <div class="alert-time">${new Date(alert.timestamp).toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        async function clearAlerts() {
+            if (confirm('Are you sure you want to clear all alerts?')) {
+                try {
+                    await fetch('/api/clear_alerts', { method: 'POST' });
+                    fetchData();
+                } catch (error) {
+                    console.error('Error clearing alerts:', error);
+                }
+            }
+        }
+
+        // Auto-refresh every 3 seconds
+        setInterval(fetchData, 3000);
+
+        // Initial load
+        fetchData();
+    </script>
 </body>
 </html>
