@@ -1,52 +1,60 @@
-# app.py - Shows Client's IP (LAN, VPN, Public)
-from flask import Flask, render_template, Response, request
+#!/usr/bin/env python3
+from flask import Flask, render_template, jsonify, request
 import json
 import time
-import os
-import socket
+from datetime import datetime
+from simple_idps import RealTimeIDPS
+import threading
 
 app = Flask(__name__)
-ALERT_FILE = "/home/grine/dos-idps/dashboard/alerts.json"
-last_mtime = 0
 
-def get_client_ip():
-    if request.headers.get('X-Forwarded-For'):
-        # For proxies / ngrok
-        return request.headers.get('X-Forwarded-For').split(',')[0]
-    elif request.remote_addr:
-        return request.remote_addr
-    else:
-        return "Unknown"
-
-def event_stream():
-    global last_mtime
-    while True:
-        if os.path.exists(ALERT_FILE):
-            try:
-                mtime = os.path.getmtime(ALERT_FILE)
-                if mtime > last_mtime:
-                    with open(ALERT_FILE, 'r') as f:
-                        alerts = json.load(f)
-                    for alert in alerts:
-                        yield f"data: {json.dumps(alert)}\n\n"
-                    last_mtime = mtime
-            except:
-                pass
-        time.sleep(1)
+# Initialize IDPS
+idps_system = RealTimeIDPS()
 
 @app.route('/')
-def index():
-    client_ip = get_client_ip()
-    return render_template('index.html', client_ip=client_ip)
+def dashboard():
+    """Main dashboard page"""
+    stats = idps_system.get_dashboard_stats()
+    return render_template('index.html',
+                         stats=stats,
+                         dashboard_ip="100.90.3.86",
+                         dashboard_port=5000)
 
-@app.route('/stream')
-def stream():
-    return Response(event_stream(), mimetype="text/event-stream")
+@app.route('/api/stats')
+def get_stats():
+    """API endpoint for real-time statistics"""
+    stats = idps_system.get_dashboard_stats()
+    return jsonify(stats)
+
+@app.route('/api/alerts')
+def get_alerts():
+    """API endpoint for recent alerts"""
+    try:
+        with open('alerts.json', 'r') as f:
+            alerts = json.load(f)
+        return jsonify(alerts[-20:])
+    except:
+        return jsonify([])
+
+@app.route('/api/clear_alerts', methods=['POST'])
+def clear_alerts():
+    """Clear all alerts"""
+    try:
+        with open('alerts.json', 'w') as f:
+            json.dump([], f)
+        idps_system.total_alerts = 0
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
-    print("DASHBOARD STARTED")
-    print("   Access from LAN: http://192.168.1.107:5000")
-    print("   Access via VPN:  http://100.90.3.86:5000")
-    print("   Or use ngrok for public access")
-    print("   Client will see their own IP on the page")
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    # Start IDPS monitoring in background
+    idps_system.start_sniffing()
+
+    print("Starting IDPS Dashboard...")
+    print(f"Dashboard URL: http://100.90.3.86:5000")
+    print(f"Network Interface: {idps_system.INTERFACE}")
+    print(f"Monitoring started on port {idps_system.UDP_MONITOR_PORT}")
+
+    # Run Flask app
+    app.run(host='100.90.3.86', port=5000, debug=True)
