@@ -1,582 +1,325 @@
+└──╼ $cat templates/index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Security Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IDPS Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
     <style>
-        :root {
-            --primary: #2c3e50;
-            --secondary: #34495e;
-            --success: #27ae60;
-            --warning: #e67e22;
-            --danger: #c0392b;
-            --info: #3498db;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
-            --gray: #95a5a6;
+        /* Scrollbar styling for logs and lists */
+        #alert-log::-webkit-scrollbar, #blocked-ips-list::-webkit-scrollbar {
+            width: 8px;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        #alert-log::-webkit-scrollbar-track, #blocked-ips-list::-webkit-scrollbar-track {
+            background: #2d3748;
         }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            text-align: center;
-            border-left: 4px solid var(--info);
-        }
-
-        .header h1 {
-            color: var(--primary);
-            font-size: 2.2em;
-            margin-bottom: 8px;
-            font-weight: 400;
-        }
-
-        .header p {
-            color: var(--secondary);
-            font-size: 1.1em;
-            margin-bottom: 20px;
-            opacity: 0.8;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 10px 25px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 1em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-
-        .status-normal {
-            background: var(--success);
-            color: white;
-        }
-
-        .status-attack {
-            background: var(--danger);
-            color: white;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 25px;
-            margin-bottom: 25px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            text-align: center;
-            transition: transform 0.2s ease;
-            border-top: 3px solid var(--info);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        }
-
-        .stat-card.alert {
-            border-top-color: var(--danger);
-        }
-
-        .stat-card.load {
-            border-top-color: var(--warning);
-        }
-
-        .stat-number {
-            font-size: 2.5em;
-            font-weight: 300;
-            color: var(--primary);
-            margin: 10px 0;
-        }
-
-        .stat-label {
-            color: var(--secondary);
-            font-size: 0.85em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .progress-container {
-            background: var(--light);
-            border-radius: 8px;
-            height: 10px;
-            margin: 15px 0;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
-            transition: width 0.5s ease;
-            border-radius: 8px;
-        }
-
-        .load-indicator {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 0.8em;
-            color: var(--secondary);
-        }
-
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            height: 220px;
-        }
-
-        .chart-container h3 {
-            color: var(--primary);
-            margin-bottom: 15px;
-            font-weight: 500;
-            font-size: 1.1em;
-        }
-
-        .alerts-container {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            grid-column: 1 / -1;
-        }
-
-        .alerts-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .alerts-header h3 {
-            color: var(--primary);
-            font-weight: 500;
-            font-size: 1.2em;
-        }
-
-        .alert-item {
-            padding: 18px;
-            margin: 10px 0;
-            border-left: 4px solid var(--info);
-            background: var(--light);
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .alert-item:hover {
-            transform: translateX(2px);
-        }
-
-        .alert-high {
-            border-left-color: var(--warning);
-            background: #fdf2e9;
-        }
-
-        .alert-critical {
-            border-left-color: var(--danger);
-            background: #faeaea;
-        }
-
-        .alert-title {
-            font-weight: 600;
-            color: var(--primary);
-            margin-bottom: 5px;
-            font-size: 1em;
-        }
-
-        .alert-meta {
-            font-size: 0.85em;
-            color: var(--secondary);
-            margin-bottom: 3px;
-        }
-
-        .alert-time {
-            font-size: 0.8em;
-            color: var(--gray);
-        }
-
-        .button {
-            padding: 10px 20px;
-            background: var(--info);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9em;
-            transition: all 0.2s ease;
-        }
-
-        .button:hover {
-            background: #2980b9;
-        }
-
-        .button-clear {
-            background: var(--danger);
-        }
-
-        .button-clear:hover {
-            background: #a93226;
-        }
-
-        .footer {
-            text-align: center;
-            color: var(--secondary);
-            margin-top: 30px;
-            opacity: 0.7;
-            font-size: 0.9em;
-        }
-
-        /* Popup Alert Styles */
-        .alert-popup {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--danger);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            z-index: 1000;
-            max-width: 400px;
-            animation: slideIn 0.5s ease;
-            border-left: 5px solid #fff;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .alert-popup h4 {
-            margin-bottom: 10px;
-            font-size: 1.2em;
-        }
-
-        .alert-popup p {
-            margin-bottom: 10px;
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-
-        .alert-popup button {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 5px 15px;
+        #alert-log::-webkit-scrollbar-thumb, #blocked-ips-list::-webkit-scrollbar-thumb {
+            background: #4a5568;
             border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8em;
+        }
+        #alert-log::-webkit-scrollbar-thumb:hover, #blocked-ips-list::-webkit-scrollbar-thumb:hover {
+            background: #718096;
         }
 
-        .alert-popup button:hover {
-            background: rgba(255,255,255,0.3);
+        /* Modal transitions */
+        #alert-modal {
+            transition: opacity 0.20s ease-in-out;
         }
+        .modal-hidden { opacity: 0; pointer-events: none; }
+        .modal-visible { opacity: 1; pointer-events: auto; }
 
-        .rate-info {
-            font-size: 0.8em;
-            color: var(--gray);
-            margin-top: 5px;
-        }
+        /* Small visual adjustments */
+        .stat-number { letter-spacing: -0.02em; }
+        .card-title { color: #9aa4b2; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Network Security Dashboard</h1>
-            <p>Real-time Intrusion Detection and Prevention System</p>
-            <div id="statusIndicator" class="status-badge status-normal">
-                Normal Operation
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-semibold">Real-time IDPS Dashboard</h1>
+            <div class="flex items-center space-x-3">
+                <div id="connection-status-dot" class="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span id="connection-status-text" class="text-sm text-gray-300">Connecting...</span>
             </div>
-            <p style="margin-top: 15px; font-size: 0.9em;">Dashboard: {{ dashboard_ip }}:{{ dashboard_port }}</p>
         </div>
+    </header>
 
-        <div class="dashboard-grid">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number" id="totalPackets">0</div>
-                    <div class="stat-label">Total Packets</div>
-                </div>
+    <!-- Main -->
+    <main class="container mx-auto p-4 mt-4">
 
-                <div class="stat-card alert">
-                    <div class="stat-number" id="totalAlerts">0</div>
-                    <div class="stat-label">Security Alerts</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-number" id="currentRate">0</div>
-                    <div class="stat-label">Current Rate (pps)</div>
-                    <div class="rate-info">Max observed: <span id="maxRate">0</span> pps</div>
-                </div>
-
-                <div class="stat-card load">
-                    <div class="stat-number" id="networkLoad">0%</div>
-                    <div class="stat-label">Network Load</div>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="networkLoadBar" style="width: 0%"></div>
-                    </div>
-                    <div class="load-indicator">
-                        <span>Low</span>
-                        <span>Medium</span>
-                        <span>High</span>
-                    </div>
-                </div>
+        <!-- Stats row -->
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div id="status-card" class="bg-gray-800 rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                <div class="card-title">System Status</div>
+                <div id="status-text" class="text-3xl font-bold text-blue-400 mt-2">MONITORING</div>
             </div>
 
-            <div class="chart-container">
-                <h3>Packet Distribution</h3>
-                <canvas id="packetChart" width="200" height="150"></canvas>
+            <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                <div class="card-title">Packets per second</div>
+                <div id="pps-stat" class="text-3xl font-bold mt-2 stat-number">0</div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                <div class="card-title">Traffic</div>
+                <div id="bps-stat" class="text-3xl font-bold mt-2 stat-number">0 B/s</div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                <div class="card-title">Active Flows</div>
+                <div id="active-flows" class="text-3xl font-bold mt-2 stat-number">0</div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                <div class="card-title">Blocked IPs</div>
+                <div id="blocked-ips-count" class="text-3xl font-bold mt-2 stat-number">0</div>
             </div>
         </div>
 
-        <div class="alerts-container">
-            <div class="alerts-header">
-                <h3>Security Alerts</h3>
-                <button class="button button-clear" onclick="clearAlerts()">Clear All Alerts</button>
-            </div>
-            <div id="alertsList">
-                <div class="alert-item">
-                    <div class="alert-title">No recent security alerts</div>
-                    <div class="alert-meta">Network traffic is operating within normal parameters</div>
+        <!-- Alerts and blocked list -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+
+            <!-- Live Event Log -->
+            <section class="bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 class="text-lg font-semibold mb-4">Live Event Log</h2>
+                <div id="alert-log" class="h-64 overflow-y-auto space-y-3 pr-2 text-sm">
+                    <p class="text-gray-500">Waiting for events...</p>
+                </div>
+            </section>
+
+            <!-- Blocked IPs -->
+            <section class="bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 class="text-lg font-semibold mb-4">Currently Blocked IPs</h2>
+                <div id="blocked-ips-list" class="h-64 overflow-y-auto space-y-2 pr-2 text-sm">
+                    <p class="text-gray-500">No IPs blocked.</p>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Professional alert modal -->
+    <div id="alert-modal" class="modal-hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl mx-4 border border-red-600">
+            <div class="flex items-start justify-between space-x-4">
+                <div>
+                    <div class="text-xl font-semibold text-red-400">Threat Detection Alert</div>
+                    <div class="text-sm text-gray-400 mt-1">A network flow has been flagged by the detection model. Review the indicators below and acknowledge once reviewed.</div>
+                </div>
+                <div class="ml-auto">
+                    <button id="close-modal-btn" class="text-gray-400 hover:text-white px-3 py-1 rounded">Close</button>
                 </div>
             </div>
-        </div>
 
-        <div class="footer">
-            <p>Auto-refreshing every 3 seconds | Network Intrusion Detection System</p>
+            <div id="modal-alert-content" class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
+
+                <!-- JS will populate summary, indicators, and flow details here -->
+
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button id="close-modal-btn-bottom" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded">Acknowledge</button>
+            </div>
         </div>
     </div>
 
-    <!-- Popup Alert Container -->
-    <div id="popupContainer"></div>
-
     <script>
-        let packetChart = null;
-        let lastAlertCount = 0;
-        let popupTimeout = null;
+        const socket = io();
 
-        function updateDashboard(data) {
-            // Update statistics
-            document.getElementById('totalPackets').textContent = data.total_packets.toLocaleString();
-            document.getElementById('totalAlerts').textContent = data.total_alerts.toLocaleString();
-            document.getElementById('currentRate').textContent = data.current_rate;
-            document.getElementById('maxRate').textContent = data.max_observed_rate || 0;
-            document.getElementById('networkLoad').textContent = data.network_load + '%';
+        // DOM references
+        const connDot = document.getElementById('connection-status-dot');
+        const connText = document.getElementById('connection-status-text');
 
-            // Update network load progress bar
-            const loadBar = document.getElementById('networkLoadBar');
-            loadBar.style.width = data.network_load + '%';
+        const statusCard = document.getElementById('status-card');
+        const statusText = document.getElementById('status-text');
 
-            // Update status indicator
-            const statusIndicator = document.getElementById('statusIndicator');
+        const ppsStatEl = document.getElementById('pps-stat');
+        const bpsStatEl = document.getElementById('bps-stat');
+        const activeFlowsEl = document.getElementById('active-flows');
+        const blockedIPsCountEl = document.getElementById('blocked-ips-count');
 
-            if (data.system_status === 'UNDER_ATTACK') {
-                statusIndicator.className = 'status-badge status-attack';
-                statusIndicator.textContent = 'Under Attack';
+        const alertLog = document.getElementById('alert-log');
+        const blockedIPsList = document.getElementById('blocked-ips-list');
 
-                // Show popup alert for new attacks
-                if (data.total_alerts > lastAlertCount) {
-                    showAttackPopup(data.recent_alerts[0]);
-                }
-            } else {
-                statusIndicator.className = 'status-badge status-normal';
-                statusIndicator.textContent = 'Normal Operation';
+        const alertModal = document.getElementById('alert-modal');
+        const modalContent = document.getElementById('modal-alert-content');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const closeModalBtnBottom = document.getElementById('close-modal-btn-bottom');
+
+        // Track rendered blocked IPs
+        let renderedBlockedIPs = new Set();
+
+        // Helper: add entry to a log container
+        function addToLog(container, message, type = 'info') {
+            // Limit items to latest 50
+            while (container.children.length > 50) {
+                container.removeChild(container.firstChild);
             }
 
-            lastAlertCount = data.total_alerts;
+            // Remove placeholder
+            if (container.children[0] && container.children[0].innerText === 'Waiting for events...') {
+                container.innerHTML = '';
+            }
 
-            // Update packet chart
-            updatePacketChart(data.packet_stats);
+            const el = document.createElement('div');
+            const time = new Date().toLocaleTimeString();
+            let colorClass = 'bg-gray-700 border border-gray-600';
+            if (type === 'alert') {
+                colorClass = 'bg-red-900 border border-red-700';
+            } else if (type === 'warning') {
+                colorClass = 'bg-yellow-900 border border-yellow-700';
+            } else if (type === 'normal') {
+                colorClass = 'bg-green-900 border border-green-700';
+            }
 
-            // Update alerts
-            updateAlerts(data.recent_alerts);
+            el.className = `p-3 rounded-lg text-sm font-mono ${colorClass}`;
+            el.innerText = `[${time}] ${message}`;
+            container.appendChild(el);
+            container.scrollTop = container.scrollHeight;
         }
 
-        function showAttackPopup(alert) {
-            // Clear any existing popup
-            if (popupTimeout) {
-                clearTimeout(popupTimeout);
-            }
+        // Helper: human readable bytes per second
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 B/s';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s', 'TB/s'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
 
-            const popupContainer = document.getElementById('popupContainer');
+        // Modal show/hide
+        function showModal(alertData) {
+            // Build a professional, structured layout: Summary, Indicators, Flow Details
+            modalContent.innerHTML = `
+                <div class="md:col-span-2">
+                    <div class="text-sm text-gray-300 font-medium mb-2">Summary</div>
+                    <div class="text-sm text-gray-400 leading-snug">
+                        The detection model classified a flow as high risk. Please review indicators, check source and destination, and take action if needed.
+                    </div>
+                </div>
 
-            // Format confidence/probability
-            let confidence = 'N/A';
-            if (alert.probability && alert.probability !== 'N/A') {
-                confidence = (alert.probability * 100).toFixed(1) + '%';
-            }
+                <div>
+                    <div class="text-sm text-gray-300 font-medium mb-2">Key Indicators</div>
+                    <div class="text-sm text-gray-400 space-y-2">
+                        <div><strong class="text-gray-300">Attack probability:</strong> ${alertData.prob_attack}</div>
+                        <div><strong class="text-gray-300">Packet rate:</strong> ${alertData.rate} pkt/s</div>
+                        <div><strong class="text-gray-300">Packet count:</strong> ${alertData.packets}</div>
+                    </div>
+                </div>
 
-            const popup = document.createElement('div');
-            popup.className = 'alert-popup';
-            popup.innerHTML = `
-                <h4>SECURITY ALERT</h4>
-                <p><strong>${alert.type}</strong> detected from ${alert.source_ip}</p>
-                <p>Target: Port ${alert.destination_port}</p>
-                <p>Rate: ${alert.packets_per_second} packets/second</p>
-                <p>Severity: ${alert.severity} | Confidence: ${confidence}</p>
-                <button onclick="this.parentElement.remove()">Dismiss</button>
+                <div class="md:col-span-3">
+                    <div class="mt-2 text-sm text-gray-300 font-medium mb-1">Flow details</div>
+                    <div class="bg-gray-700 rounded p-3 font-mono text-sm text-gray-200 break-words">
+                        ${alertData.flow_id}
+                    </div>
+                </div>
             `;
 
-            popupContainer.appendChild(popup);
-
-            // Auto-remove after 10 seconds
-            popupTimeout = setTimeout(() => {
-                if (popup.parentElement) {
-                    popup.remove();
-                }
-            }, 10000);
+            alertModal.classList.remove('modal-hidden');
+            alertModal.classList.add('modal-visible');
         }
 
-        function updatePacketChart(stats) {
-            const ctx = document.getElementById('packetChart').getContext('2d');
-
-            if (packetChart) {
-                packetChart.destroy();
-            }
-
-            packetChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['UDP', 'TCP', 'ICMP', 'Other'],
-                    datasets: [{
-                        data: [stats.udp, stats.tcp, stats.icmp, stats.other],
-                        backgroundColor: ['#3498db', '#2ecc71', '#e67e22', '#95a5a6'],
-                        borderWidth: 1,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 15,
-                                usePointStyle: true
-                            }
-                        }
-                    },
-                    cutout: '65%'
-                }
-            });
+        function hideModal() {
+            alertModal.classList.remove('modal-visible');
+            alertModal.classList.add('modal-hidden');
         }
 
-        function updateAlerts(alerts) {
-            const alertsList = document.getElementById('alertsList');
+        closeModalBtn.onclick = hideModal;
+        closeModalBtnBottom.onclick = hideModal;
 
-            if (alerts.length === 0) {
-                alertsList.innerHTML = `
-                    <div class="alert-item">
-                        <div class="alert-title">No recent security alerts</div>
-                        <div class="alert-meta">Network traffic is operating within normal parameters</div>
-                    </div>
-                `;
-                return;
-            }
+        // Socket events
+        socket.on('connect', () => {
+            connDot.classList.remove('bg-red-500');
+            connDot.classList.add('bg-green-500');
+            connText.innerText = 'Connected';
+            addToLog(alertLog, 'Connected to backend', 'normal');
+        });
 
-            alertsList.innerHTML = alerts.reverse().map(alert => {
-                const severityClass = alert.severity === 'CRITICAL' ? 'alert-critical' :
-                                   alert.severity === 'HIGH' ? 'alert-high' : '';
+        socket.on('disconnect', () => {
+            connDot.classList.remove('bg-green-500');
+            connDot.classList.add('bg-red-500');
+            connText.innerText = 'Disconnected';
+            addToLog(alertLog, 'Disconnected from backend', 'warning');
+        });
 
-                // Handle probability/confidence display
-                let confidence = 'N/A';
-                if (alert.probability && alert.probability !== 'N/A') {
-                    confidence = (alert.probability * 100).toFixed(1) + '%';
-                }
-
-                return `
-                    <div class="alert-item ${severityClass}">
-                        <div class="alert-title">${alert.type} - ${alert.source_ip} to port ${alert.destination_port}</div>
-                        <div class="alert-meta">
-                            Rate: ${alert.packets_per_second} p/s |
-                            Confidence: ${confidence} |
-                            Severity: ${alert.severity} |
-                            Method: ${alert.detection_method}
-                        </div>
-                        <div class="alert-time">${new Date(alert.timestamp).toLocaleString()}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        async function fetchData() {
+        socket.on('update_stats', (data) => {
+            // Update small stat cards
             try {
-                const response = await fetch('/api/stats');
-                const data = await response.json();
-                updateDashboard(data);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            }
-        }
+                ppsStatEl.innerText = Number(data.pps).toFixed(0);
+            } catch { ppsStatEl.innerText = '0'; }
+            try {
+                bpsStatEl.innerText = formatBytes(Number(data.bps));
+            } catch { bpsStatEl.innerText = '0 B/s'; }
 
-        async function clearAlerts() {
-            if (confirm('Are you sure you want to clear all alerts?')) {
-                try {
-                    await fetch('/api/clear_alerts', { method: 'POST' });
-                    fetchData();
-                } catch (error) {
-                    console.error('Error clearing alerts:', error);
+            activeFlowsEl.innerText = data.active_flows ?? 0;
+            blockedIPsCountEl.innerText = (data.blocked_ips_list && data.blocked_ips_list.length) ? data.blocked_ips_list.length : 0;
+
+            // Rebuild blocked IP list incrementally
+            const newBlockedIPs = new Set(data.blocked_ips_list || []);
+
+            // Remove IPs no longer blocked
+            for (const ip of Array.from(renderedBlockedIPs)) {
+                if (!newBlockedIPs.has(ip)) {
+                    const el = document.getElementById(`blocked-${ip}`);
+                    if (el) el.remove();
+                    renderedBlockedIPs.delete(ip);
                 }
             }
-        }
 
-        // Auto-refresh every 3 seconds
-        setInterval(fetchData, 3000);
+            // Add new IPs
+            for (const ip of newBlockedIPs) {
+                if (!renderedBlockedIPs.has(ip)) {
+                    if (blockedIPsList.children[0] && blockedIPsList.children[0].innerText === 'No IPs blocked.') {
+                        blockedIPsList.innerHTML = '';
+                    }
+                    const el = document.createElement('div');
+                    el.id = `blocked-${ip}`;
+                    el.className = 'p-3 rounded-lg bg-red-800 text-sm font-mono';
+                    el.innerText = `${ip}`;
+                    blockedIPsList.appendChild(el);
+                    renderedBlockedIPs.add(ip);
+                }
+            }
 
-        // Initial load
-        fetchData();
+            // Placeholder if empty
+            if (renderedBlockedIPs.size === 0) {
+                blockedIPsList.innerHTML = '<p class="text-gray-500">No IPs blocked.</p>';
+            }
+        });
+
+        socket.on('new_alert', (data) => {
+            // Update status visuals
+            statusCard.classList.remove('border-blue-500');
+            statusCard.classList.add('border-red-500');
+            statusText.innerText = 'ALERT';
+            statusText.classList.remove('text-blue-400');
+            statusText.classList.add('text-red-400');
+
+            const msg = `Flow: ${data.flow_id} | Prob: ${data.prob_attack} | Rate: ${data.rate}/s`;
+            addToLog(alertLog, msg, 'alert');
+
+            // Open professional modal
+            showModal(data);
+        });
+
+        socket.on('system_message', (data) => {
+            addToLog(alertLog, data.msg, 'warning');
+        });
+
+        socket.on('flow_normal', (data) => {
+            statusCard.classList.remove('border-red-500');
+            statusCard.classList.add('border-blue-500');
+            statusText.innerText = 'MONITORING';
+            statusText.classList.remove('text-red-400');
+            statusText.classList.add('text-blue-400');
+
+            const msg = `Flow ${data.flow_id} returned to normal.`;
+            addToLog(alertLog, msg, 'normal');
+        });
     </script>
 </body>
 </html>
